@@ -1,9 +1,11 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { randomUUID } from 'crypto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
@@ -111,6 +113,24 @@ export class UsersService {
     }
 
     return this.formatUser(user);
+  }
+
+  /**
+   * Fetch a user with their profile and role-specific profiles
+   * (driver/mechanic). Returns the raw Prisma record.
+   */
+  async findUserWithProfile(id: string) {
+    return this.prisma.users.findUnique({
+      where: { id },
+      include: {
+        user_profile: {
+          include: {
+            driverProfile: true,
+            mechanicProfile: true,
+          },
+        },
+      },
+    });
   }
 
   async findUserByEmail(email: string): Promise<UserEntity | null> {
@@ -238,6 +258,141 @@ export class UsersService {
     await this.prisma.users.delete({
       where: { id },
     });
+  }
+
+  /**
+   * Update a user's profile fields. Admin_L1 cannot modify Super_Admin
+   * users or assign the Super_Admin role.
+   */
+  async updateUser(
+    id: string,
+    dto: UpdateUserDto,
+    actorRole: string,
+  ): Promise<UserEntity> {
+    const target = await this.prisma.users.findUnique({
+      where: { id },
+      include: { user_profile: true },
+    });
+
+    if (!target || target.deleted_at) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Admin_L1 can only manage team roles: Admin_L2, Mechanic, Driver.
+    const adminManagedRoles = ['SUPER_ADMIN', 'ADMIN_L1'];
+    const normalize = (r?: string | null) =>
+      (r || '').toString().trim().toUpperCase().replace(/[\s-]+/g, '_');
+
+    if (
+      actorRole === 'Admin_L1' &&
+      adminManagedRoles.some((r) => normalize(target.role) === r)
+    ) {
+      throw new ForbiddenException(
+        'Admin_L1 cannot modify admin users',
+      );
+    }
+
+    if (
+      actorRole === 'Admin_L1' &&
+      dto.role &&
+      adminManagedRoles.some((r) => normalize(dto.role) === r)
+    ) {
+      throw new ForbiddenException(
+        'Admin_L1 cannot assign admin roles',
+      );
+    }
+
+    if (dto.email && dto.email !== target.email) {
+      const existing = await this.prisma.users.findFirst({
+        where: { email: dto.email, NOT: { id } },
+      });
+      if (existing) {
+        throw new ConflictException('User with this email already exists');
+      }
+    }
+
+    if (dto.phone_number && dto.phone_number !== target.phone) {
+      const existing = await this.prisma.users.findFirst({
+        where: { phone: dto.phone_number, NOT: { id } },
+      });
+      if (existing) {
+        throw new ConflictException(
+          'User with this phone number already exists',
+        );
+      }
+    }
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.users.update({
+        where: { id },
+        data: {
+          ...(dto.email !== undefined ? { email: dto.email } : {}),
+          ...(dto.phone_number !== undefined
+            ? { phone: dto.phone_number }
+            : {}),
+          ...(dto.role !== undefined ? { role: dto.role } : {}),
+        },
+        include: { user_profile: true },
+      });
+
+      const profileData = {
+        ...(dto.first_name !== undefined
+          ? { first_name: dto.first_name }
+          : {}),
+        ...(dto.last_name !== undefined ? { last_name: dto.last_name } : {}),
+        ...(dto.email !== undefined ? { email: dto.email } : {}),
+        ...(dto.phone_number !== undefined
+          ? { phone_number: dto.phone_number }
+          : {}),
+      };
+
+      if (Object.keys(profileData).length > 0 && target.user_profile) {
+        await tx.user_profiles.update({
+          where: { id },
+          data: profileData,
+        });
+        updated.user_profile = {
+          ...target.user_profile,
+          ...profileData,
+        } as typeof target.user_profile;
+      }
+
+      return updated;
+    });
+
+    return this.formatUser(user);
+  }
+
+  /** Soft-delete a user by setting deleted_at. */
+  async softDeleteUser(id: string, actorId: string, actorRole: string) {
+    if (id === actorId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
+
+    const target = await this.prisma.users.findUnique({ where: { id } });
+
+    if (!target || target.deleted_at) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Admin_L1 can only manage team roles: Admin_L2, Mechanic, Driver.
+    const adminManagedRoles = ['SUPER_ADMIN', 'ADMIN_L1'];
+    const normalizeRole = (r?: string | null) =>
+      (r || '').toString().trim().toUpperCase().replace(/[\s-]+/g, '_');
+
+    if (
+      actorRole === 'Admin_L1' &&
+      adminManagedRoles.includes(normalizeRole(target.role))
+    ) {
+      throw new ForbiddenException('Admin_L1 cannot modify admin users');
+    }
+
+    await this.prisma.users.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+
+    return { message: 'User deleted successfully' };
   }
 
   formatUser(user: any): UserEntity {

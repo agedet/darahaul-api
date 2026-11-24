@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { join } from 'path';
+// import { join } from 'path';
 // import { ServeStaticModule } from '@nestjs/serve-static';
 // import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -13,6 +13,7 @@ import { MailModule } from './mail/mail.module';
 import { UsersModule } from './users/users.module';
 import { ProfileModule } from './profile/profile.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { AdminModule } from './admin/admin.module';
 
 
 @Module({
@@ -53,6 +54,7 @@ import { InvitationsModule } from './invitations/invitations.module';
     MailModule,
     ProfileModule,
     InvitationsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

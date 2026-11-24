@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { UpdatePersonalProfileDto } from './dto/personal-profile.dto';
+import { CompleteOnboardingDto } from './dto/onboarding.dto';
+import { user_role } from '@prisma/client';
 
 @Injectable()
 export class ProfileService {
@@ -145,6 +147,76 @@ export class ProfileService {
     } catch (updateError) {
       throw new BadRequestException('Failed to update personal profile');
     }
+  }
+
+  /**
+   * Create or update the role-specific profile for drivers and mechanics.
+   * Safe to call multiple times (upsert) so it can also be used for edits.
+   */
+  async completeOnboarding(user: any, dto: CompleteOnboardingDto): Promise<any> {
+    if (!user?.id || typeof user.id !== 'string') {
+      throw new BadRequestException('Invalid user ID format');
+    }
+
+    const role = (user.role || '').toString().toUpperCase();
+
+    if (role === user_role.Driver && dto.driver_onboarding) {
+      const data = dto.driver_onboarding;
+      const profile = await this.prisma.driver.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          licenseNumber: data.license_number,
+          address: data.address,
+          emergencyPhone: data.emergency_phone,
+          dateOfBirth: data.date_of_birth,
+          emergencyContactName: data.emergency_contact_name,
+        },
+        update: {
+          licenseNumber: data.license_number,
+          address: data.address,
+          emergencyPhone: data.emergency_phone,
+          dateOfBirth: data.date_of_birth,
+          emergencyContactName: data.emergency_contact_name,
+        },
+      });
+
+      return {
+        message: 'Driver profile saved successfully',
+        onboardingCompleted: true,
+        driver: profile,
+      };
+    }
+
+    if (role === user_role.Mechanic && dto.mechanic_onboarding) {
+      const data = dto.mechanic_onboarding;
+      const profile = await this.prisma.mechanic.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          specialty: data.specialty,
+          certifications: data.certifications,
+          yearsOfExperience: data.years_of_experience,
+          hourlyRate: data.hourly_rate,
+        },
+        update: {
+          specialty: data.specialty,
+          certifications: data.certifications,
+          yearsOfExperience: data.years_of_experience,
+          hourlyRate: data.hourly_rate,
+        },
+      });
+
+      return {
+        message: 'Mechanic profile saved successfully',
+        onboardingCompleted: true,
+        mechanic: profile,
+      };
+    }
+
+    throw new BadRequestException(
+      'Onboarding data does not match your role or is missing',
+    );
   }
 
   private formatPersonalProfile(user: any) {

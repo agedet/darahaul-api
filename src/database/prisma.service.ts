@@ -5,6 +5,7 @@ import {
   HttpException,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { DatabaseException } from '../common/exceptions/database.exceptions';
 import { LoggerService } from '../common/services/logger.service';
 
@@ -26,8 +27,14 @@ export class PrismaService
       );
     }
 
-    // Initialize PrismaClient (Prisma 6.x handles connection pooling internally)
+    // Prisma 7 requires a driver adapter for database connections
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL,
+    });
+
+    // Initialize PrismaClient with the pg driver adapter
     super({
+      adapter,
       log:
         process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     });

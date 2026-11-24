@@ -1,4 +1,3 @@
-import { user_role } from '@prisma/client';
 import {
   Injectable,
   CanActivate,
@@ -20,8 +19,8 @@ export class RolesGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const userRoles = this.reflector.get<user_role[]>(
-      'userRoles',
+    const userRoles = this.reflector.get<string[]>(
+      'roles',
       context.getHandler(),
     );
 
@@ -47,11 +46,26 @@ export class RolesGuard implements CanActivate {
     }
 
     // Fallback: decode token if user is not set (for backwards compatibility)
-    const authHeader = request.headers.authorization;
-    this.logger.debug(`Auth header present: ${!!authHeader}`);
+    // Supports both Bearer header and the `accessToken` HttpOnly cookie.
+    let token: string | undefined;
 
+    const authHeader = request.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+      token = authHeader.split(' ')[1];
+    } else {
+      const cookieHeader: string | undefined = request.headers.cookie;
+      const cookieMatch = cookieHeader
+        ?.split(';')
+        .map((c: string) => c.trim())
+        .find((c: string) => c.startsWith('accessToken='));
+      if (cookieMatch) {
+        token = decodeURIComponent(cookieMatch.slice('accessToken='.length));
+      }
+    }
+
+    this.logger.debug(`Auth token present: ${!!token}`);
+
+    if (token) {
 
       try {
         const decoded = jwt.verify(

@@ -21,12 +21,33 @@ export interface AssistanceOfferedData {
 export class MailTemplateService {
   constructor(private configService: ConfigService) {}
 
+  /**
+   * Resolve the public frontend base URL for email links.
+   * Prefers AUTH_BASE_URL, falls back to the first FRONTEND_URL entry.
+   */
+  private resolveBaseUrl(): string {
+    const authBase = this.configService.get<string>('AUTH_BASE_URL');
+    if (authBase) return authBase.replace(/\/+$/, '');
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const first = frontendUrl?.split(',')[0]?.trim();
+    return (first || 'http://localhost:5173').replace(/\/+$/, '');
+  }
+
   private buildVerifyLink(email: string): string {
-    const baseUrl = this.configService.get<string>('AUTH_BASE_URL');
+    const baseUrl = this.resolveBaseUrl();
     const path = this.configService.get<string>('VERIFY_OTP_PATH');
-    const cleanBaseUrl = baseUrl?.replace(/\/+$/, '');
     const cleanPath = path?.startsWith('/') ? path : `/${path}`;
-    return `${cleanBaseUrl}${cleanPath}?email=${encodeURIComponent(email)}`;
+    return `${baseUrl}${cleanPath}?email=${encodeURIComponent(email)}`;
+  }
+
+  private buildAcceptInvitationLink(token: string): string {
+    const baseUrl = this.resolveBaseUrl();
+    const path =
+      this.configService.get<string>('INVITATION_ACCEPT_PATH') ||
+      '/invite/accept';
+    const cleanPath = path?.startsWith('/') ? path : `/${path}`;
+    return `${baseUrl}${cleanPath}?token=${encodeURIComponent(token)}`;
   }
 
   /**
@@ -46,12 +67,12 @@ export class MailTemplateService {
 
     // IMPORTANT: These are Content-IDs (CIDs) for embedded images.
     // They must match the CIDs provided in the 'attachments' array of your email sending options.
-    const logoUrl = 'cid:aitrader-logo';
+    const logoUrl = 'cid:darahaul-logo';
     const envelopeLeftUrl = 'cid:envelope-left';
     const envelopeRightUrl = 'cid:envelope-right';
 
     const footerNote = showFooterNote
-      ? `If you have any questions, please contact our <a href="mailto:support@aitrader.com" style="color: #64748B; text-decoration: underline;">support team</a>`
+      ? `If you have any questions, please contact our <a href="mailto:support@darahaul.com" style="color: #64748B; text-decoration: underline;">support team</a>`
       : `Thank you,<br>The Darahaul Support Team`;
 
     return `
@@ -114,9 +135,9 @@ export class MailTemplateService {
           }
         </style>
       </head>
-      <body style="margin: 0; padding: 0; background-color: #f4f4f4; width: 100%; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+      <body style="margin: 0; padding: 0; background-color: #ffffff; width: 100%; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
         <!-- Full width background table -->
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0; padding: 0; width: 100%; background-color: #f4f4f4; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0; padding: 0; width: 100%; background-color: #ffffff; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
           <tr>
             <td align="center" style="padding: 0; margin: 0;">
               <!-- Main container table -->
@@ -134,10 +155,10 @@ export class MailTemplateService {
                   <td style="padding: 0; margin: 0;">
                     <!--[if gte mso 9]>
                     <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;">
-                    <v:fill type="gradient" color="#8C52FF" color2="#CB6CE6" angle="90" />
+                    <v:fill type="gradient" color="#000000" color2="#000000" angle="90" />
                     <v:textbox style="mso-fit-shape-to-text:true" inset="0,0,0,0">
                     <![endif]-->
-                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; background-color: #8C52FF; background-image: linear-gradient(179.04deg, #8C52FF 0.83%, #CB6CE6 108.86%); border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; background-color: #000000; background-image: linear-gradient(179.04deg, #000000 0.83%, #000000 108.86%); border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
                       <tr>
                         <!-- Left decoration -->
                         <td align="left" valign="top" class="header-deco-left" style="width: 120px; padding: 19px 0 0 3px; margin: 0; vertical-align: top;">
@@ -187,6 +208,11 @@ export class MailTemplateService {
     `;
   }
 
+  private formatRoleLabel(role?: string | null): string {
+    if (!role) return 'team member';
+    return role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   private generateOtpAndButton(
     otp: string,
     link: string,
@@ -203,14 +229,47 @@ export class MailTemplateService {
         <tr>
           <td align="center" style="padding: 0; margin: 0;">
             <!--[if mso]>
-            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${link}" style="height:44px;v-text-anchor:middle;width:200px;" arcsize="11%" stroke="f" fillcolor="#FFC951">
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${link}" style="height:44px;v-text-anchor:middle;width:200px;" arcsize="11%" stroke="f" fillcolor="#000000">
             <w:anchorlock/>
-            <center style="color:#5442A5;font-family:'Roboto',Arial,sans-serif;font-size:16px;font-weight:bold;">Verify your account</center>
+            <center style="color:#ffffff;font-family:'Roboto',Arial,sans-serif;font-size:16px;font-weight:bold;">Verify your account</center>
             </v:roundrect>
             <![endif]-->
             <!--[if !mso]><!-->
-            <a href="${link}" target="_blank" class="button-primary" style="display: inline-block; padding: 12px 25px; margin: 0; background-color: #FFC951; color: #5442A5; text-decoration: none; border-radius: 5px; font-family: 'Roboto', Arial, Helvetica, sans-serif; font-size: 16px; font-weight: bold; text-align: center; line-height: 1.5; mso-hide: all;">
+            <a href="${link}" target="_blank" class="button-primary" style="display: inline-block; padding: 12px 25px; margin: 0; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 5px; font-family: 'Roboto', Arial, Helvetica, sans-serif; font-size: 16px; font-weight: bold; text-align: center; line-height: 1.5; mso-hide: all;">
               Verify your account
+            </a>
+            <!--<![endif]-->
+          </td>
+        </tr>
+      </table>
+    `;
+  }
+
+  /**
+   * Button-only CTA for invitation emails. The invitation token must never
+   * be rendered in the email body — it only travels inside the link.
+   */
+  private generateInvitationButton(link: string, expiryMinutes: number): string {
+    const expiryText =
+      expiryMinutes >= 1440
+        ? `This invitation expires in ${Math.round(expiryMinutes / 1440)} days`
+        : `This invitation expires in ${expiryMinutes} minutes`;
+    return `
+      <p style="margin: 0 0 20px 0; padding: 0; text-align: left; color: #64748B; font-size: 14px; font-family: 'Roboto', Arial, Helvetica, sans-serif; line-height: 1.5; mso-line-height-rule: exactly;">
+        ${expiryText}
+      </p>
+      <table role="presentation" border="0" cellspacing="0" cellpadding="0" width="100%" style="width: 100%; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
+        <tr>
+          <td align="center" style="padding: 0; margin: 0;">
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${link}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="11%" stroke="f" fillcolor="#000000">
+            <w:anchorlock/>
+            <center style="color:#ffffff;font-family:'Roboto',Arial,sans-serif;font-size:16px;font-weight:bold;">Accept Invitation</center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
+            <a href="${link}" target="_blank" class="button-primary" style="display: inline-block; padding: 12px 25px; margin: 0; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 5px; font-family: 'Roboto', Arial, Helvetica, sans-serif; font-size: 16px; font-weight: bold; text-align: center; line-height: 1.5; mso-hide: all;">
+              Accept Invitation
             </a>
             <!--<![endif]-->
           </td>
@@ -257,12 +316,12 @@ export class MailTemplateService {
   }
 
   generateSuperAdminInvitationEmail(data: SuperAdminInvitationData): string {
-    const verifyLink = this.buildVerifyLink(data.email);
+    const verifyLink = this.buildAcceptInvitationLink(data.otp);
     const content = `
       <p style="margin: 0 0 20px 0;">Hello, ${data.firstName} ${data.lastName}</p>
-      <p style="margin: 0 0 20px 0;">You have been invited to join Darahaul as a <strong>${data.role}</strong> by ${data.inviterRole}.</p>
-      <p style="margin: 0 0 20px 0;">Use the verification code below to accept the invitation and activate your super admin access.</p>
-      ${this.generateOtpAndButton(data.otp, verifyLink, data.expiryMinutes || 10)}
+      <p style="margin: 0 0 20px 0;">You have been invited to join Darahaul platform.</p>
+      <p style="margin: 0 0 20px 0;">Click the button below to accept the invitation and activate your account.</p>
+      ${this.generateInvitationButton(verifyLink, data.expiryMinutes || 10)}
     `;
 
     return this.getBaseTemplate('SUPER ADMIN INVITATION', content);
@@ -309,7 +368,7 @@ export class MailTemplateService {
   }
 
   generateInvitationEmail(data: InvitationEmailData): string {
-    const verifyLink = this.buildVerifyLink(data.email);
+    const verifyLink = this.buildAcceptInvitationLink(data.otp);
     const companyLine = data.firstName
       ? `<p style="margin: 0;"><strong>First Name:</strong> ${data.firstName}</p>`
       : '';
@@ -318,11 +377,11 @@ export class MailTemplateService {
       : '';
     const content = `
       <p style="margin: 0 0 20px 0;">Hello, ${data.firstName} ${data.lastName}</p>
-      <p style="margin: 0 0 20px 0;">${data.inviterName} has invited you to join Darahaul as a <strong>${data.role}</strong>.</p>
+      <p style="margin: 0 0 20px 0;">${data.inviterName} has invited you to join Darahaul as a <strong>${this.formatRoleLabel(data.role)}</strong>.</p>
       ${companyLine}
       ${lastNameLine}
-      <p style="margin: 0 0 20px 0;">Use the verification code below to accept the invitation and complete your account setup.</p>
-      ${this.generateOtpAndButton(data.otp, verifyLink, data.expiryMinutes || 10)}
+      <p style="margin: 0 0 20px 0;">Click the button below to accept the invitation and complete your account setup.</p>
+      ${this.generateInvitationButton(verifyLink, data.expiryMinutes || 10)}
     `;
 
     return this.getBaseTemplate('YOU ARE INVITED TO AI TRADER', content);
@@ -332,7 +391,7 @@ export class MailTemplateService {
     const verifyLink = this.buildVerifyLink(data.email);
     const content = `
       <p style="margin: 0 0 20px 0;">Hello, ${data.firstName}</p>
-      <p style="margin: 0 0 20px 0;">Your account has been successfully created. Welcome to the future of financial management!</p>
+      <p style="margin: 0 0 20px 0;">Your account has been successfully created. Welcome to the future of logistics management!</p>
       <p style="margin: 0;"><strong>Email:</strong> ${data.email}</p>
       ${data.firstName ? `<p style="margin: 0 0 20px 0;"><strong>First Name:</strong> ${data.firstName}</p>` : '<p style="margin: 0 0 20px 0;"></p>'}
       ${data.lastName ? `<p style="margin: 0 0 20px 0;"><strong>Last Name:</strong> ${data.lastName}</p>` : '<p style="margin: 0 0 20px 0;"></p>'}
@@ -425,7 +484,7 @@ export class MailTemplateService {
         <li>Make sure your API key has the necessary permissions</li>
       </ul>
       <p style="text-align: center; margin: 30px 0 0 0; color: #64748B; font-size: 14px;">
-        Need help? Contact our <a href="mailto:support@aitrader.com" style="color: #5442A5; text-decoration: underline;">support team</a> for assistance.
+        Need help? Contact our <a href="mailto:support@darahaul.com" style="color: #5442A5; text-decoration: underline;">support team</a> for assistance.
       </p>
     `;
     return this.getBaseTemplate('TRADING ACCOUNT INTEGRATION FAILED', content);
@@ -445,7 +504,7 @@ export class MailTemplateService {
       </div>
       <p style="margin: 0 0 20px 0;">Trading and automated features for this account are now disabled. You can reconnect at any time from Settings → Platform integrations.</p>
       <p style="text-align: center; margin: 30px 0 0 0; color: #64748B; font-size: 14px;">
-        If you didn't disconnect this account, please contact our <a href="mailto:support@aitrader.com" style="color: #5442A5; text-decoration: underline;">support team</a> immediately.
+        If you didn't disconnect this account, please contact our <a href="mailto:support@darahaul.com" style="color: #5442A5; text-decoration: underline;">support team</a> immediately.
       </p>
     `;
     return this.getBaseTemplate('TRADING ACCOUNT DISCONNECTED', content);

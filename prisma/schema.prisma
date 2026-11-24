@@ -648,11 +648,11 @@ enum one_time_token_type {
 }
 
 enum user_role {
-  DRIVER
-  MECHANIC
-  ADMIN_L1
-  ADMIN_L2
-  SUPER_ADMIN
+  Admin_L1
+  Admin_L2
+  Super_Admin
+  Mechanic
+  Driver
 
   @@schema("public")
 }

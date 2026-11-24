@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ import { ProfileService } from './profile.service';
 import { user_role } from '@prisma/client';
 import { Roles } from '../authentication/decorators/roles.decorator';
 import { UpdatePersonalProfileDto } from './dto/personal-profile.dto';
+import { CompleteOnboardingDto } from './dto/onboarding.dto';
 
 // @ApiTags('Profile')
 @Controller('profile')
@@ -28,11 +30,11 @@ export class ProfileController {
 
   @Get('personal')
   @Roles(
-    user_role.DRIVER,
-    user_role.MECHANIC,
-    user_role.ADMIN_L1,
-    user_role.ADMIN_L2,
-    user_role.SUPER_ADMIN,
+    user_role.Driver,
+    user_role.Mechanic,
+    user_role.Admin_L1,
+    user_role.Admin_L2,
+    user_role.Super_Admin,
   )
 //   @ApiOperation({ summary: 'Get personal profile' })
 //   @ApiResponse({
@@ -47,11 +49,11 @@ export class ProfileController {
 
   @Patch('personal')
   @Roles(
-    user_role.DRIVER,
-    user_role.MECHANIC,
-    user_role.ADMIN_L1,
-    user_role.ADMIN_L2,
-    user_role.SUPER_ADMIN,
+    user_role.Driver,
+    user_role.Mechanic,
+    user_role.Admin_L1,
+    user_role.Admin_L2,
+    user_role.Super_Admin,
   )
 //   @ApiOperation({ summary: 'Update personal profile' })
 //   @ApiResponse({
@@ -65,5 +67,14 @@ export class ProfileController {
     @Body() updateDto: UpdatePersonalProfileDto,
   ) {
     return this.profileService.updatePersonalProfile(req.user, updateDto);
+  }
+
+  @Post('onboarding')
+  @Roles(user_role.Driver, user_role.Mechanic)
+  async completeOnboarding(
+    @Request() req: any,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
+    return this.profileService.completeOnboarding(req.user, dto);
   }
 }

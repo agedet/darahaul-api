@@ -117,9 +117,9 @@ export class MailService {
 
     this.emailAttachments = [
       {
-        filename: 'aitrader-logo.png',
-        path: path.join(assetsPath, 'aitrader-logo.png'),
-        cid: 'aitrader-logo',
+        filename: 'darahaul-logo.png',
+        path: path.join(assetsPath, 'darahaul-logo.png'),
+        cid: 'darahaul-logo',
       },
       {
         filename: 'envelope-left.png',

@@ -23,7 +23,7 @@ export class InvitationsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(user_role.ADMIN_L1, user_role.SUPER_ADMIN)
+  @Roles(user_role.Admin_L1, user_role.Super_Admin)
   async createInvitation(
     @Body() dto: CreateInvitationDto,
     @Request() req: any,
@@ -33,7 +33,7 @@ export class InvitationsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(user_role.ADMIN_L1, user_role.SUPER_ADMIN)
+  @Roles(user_role.Admin_L1, user_role.Super_Admin)
   async listInvitations() {
     return this.invitationsService.listInvitations();
   }
@@ -50,9 +50,16 @@ export class InvitationsController {
     return this.invitationsService.acceptInvitation(dto);
   }
 
+  @Post(':id/resend')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(user_role.Admin_L1, user_role.Super_Admin)
+  async resendInvitation(@Param('id') id: string, @Request() req: any) {
+    return this.invitationsService.resendInvitation(id, req.user.id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(user_role.ADMIN_L1, user_role.SUPER_ADMIN)
+  @Roles(user_role.Admin_L1, user_role.Super_Admin)
   async revokeInvitation(@Param('id') id: string, @Request() req: any) {
     return this.invitationsService.revokeInvitation(id, req.user.id);
   }

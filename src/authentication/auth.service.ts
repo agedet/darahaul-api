@@ -19,6 +19,14 @@ import { user_role } from '@prisma/client';
 import { VerifyOtpDto } from './dto';
 import { HOTP, NobleCryptoPlugin, ScureBase32Plugin } from 'otplib';
 
+const CANONICAL_ROLES: Record<string, string> = {
+  ADMIN_L1: 'Admin_L1',
+  ADMIN_L2: 'Admin_L2',
+  SUPER_ADMIN: 'Super_Admin',
+  MECHANIC: 'Mechanic',
+  DRIVER: 'Driver',
+};
+
 @Injectable()
 export class AuthService {
   private readonly secret: string;
@@ -61,7 +69,7 @@ export class AuthService {
       date_of_birth: registerDto.date_of_birth,
       terms_accepted: registerDto.terms_accepted,
       password: hashedPassword,
-      role: user_role.DRIVER,
+      role: user_role.Driver,
     });
 
     //generate otp
@@ -216,6 +224,96 @@ export class AuthService {
     };
   }
 
+  /**
+   * Return the authenticated user's session payload, including
+   * role-specific onboarding status for drivers and mechanics.
+   */
+  async getSession(user: { id: string }) {
+    const record = await this.usersService.findUserWithProfile(user.id);
+
+    if (!record) {
+      throw new NotFoundException('User not found');
+    }
+
+    const profile = record.user_profile;
+    const role = (record.role || '').toString();
+    const canonicalRole =
+      CANONICAL_ROLES[role.trim().toUpperCase().replace(/[\s-]+/g, '_')] ?? role;
+
+    const driverProfile = profile?.driverProfile ?? null;
+    const mechanicProfile = profile?.mechanicProfile ?? null;
+
+    const onboardingCompleted =
+      canonicalRole === 'Driver'
+        ? !!driverProfile
+        : canonicalRole === 'Mechanic'
+          ? !!mechanicProfile
+          : true;
+
+    return {
+      id: record.id,
+      email: record.email || profile?.email || '',
+      firstName: profile?.first_name || '',
+      lastName: profile?.last_name || '',
+      phoneNumber: profile?.phone_number || record.phone || '',
+      role: canonicalRole,
+      onboardingCompleted,
+      driver: driverProfile
+        ? {
+            licenseNumber: driverProfile.licenseNumber,
+            address: driverProfile.address,
+            emergencyPhone: driverProfile.emergencyPhone,
+            dateOfBirth: driverProfile.dateOfBirth,
+            emergencyContactName: driverProfile.emergencyContactName,
+          }
+        : null,
+      mechanic: mechanicProfile
+        ? {
+            specialty: mechanicProfile.specialty,
+            certifications: mechanicProfile.certifications,
+            yearsOfExperience: mechanicProfile.yearsOfExperience,
+            hourlyRate: mechanicProfile.hourlyRate,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Issue a new access token from a valid refresh token.
+   * The refresh token is delivered via HttpOnly cookie only.
+   */
+  async refreshAccessToken(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
+
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const user = payload?.user;
+    if (!user?.id) {
+      throw new UnauthorizedException('Invalid refresh token payload');
+    }
+
+    const tokens = this.generateTokens(
+      {
+        email: user.email ?? '',
+        id: user.id,
+        role: user.role ?? '',
+      },
+      user.firstName ?? '',
+      user.lastName ?? '',
+    );
+
+    return { accessToken: tokens.accessToken };
+  }
+
   async resendOtp(email: string): Promise<AuthResponse | any> {
     const user = await this.usersService.findUserByEmail(email);
     if (!user) {
@@ -249,7 +347,7 @@ export class AuthService {
     user: { id: string; role: string; email: string },
     firstName: string,
     lastName: string,
-  ): { accessToken: string } {
+  ): { accessToken: string; refreshToken: string } {
     const payload = {
       user: {
         id: user.id,
@@ -262,8 +360,15 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get<string>(
+        'REFRESH_TOKEN_EXPIRATION_TIME',
+        '30d',
+      ) as any,
+    });
+
     this.logger.log(`Tokens generated for ${user.email}`);
-    return { accessToken };
+    return { accessToken, refreshToken };
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {

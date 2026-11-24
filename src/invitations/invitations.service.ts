@@ -16,13 +16,13 @@ import { MailService } from '../mail/mail.service';
 
 const INVITATION_EXPIRY_DAYS = 7;
 const ALLOWED_INVITER_ROLES: user_role[] = [
-  user_role.ADMIN_L1,
-  user_role.SUPER_ADMIN,
+  user_role.Admin_L1,
+  user_role.Super_Admin,
 ];
 const INVITABLE_ROLES: user_role[] = [
-  user_role.ADMIN_L2,
-  user_role.DRIVER,
-  user_role.MECHANIC,
+  user_role.Admin_L2,
+  user_role.Driver,
+  user_role.Mechanic,
 ];
 
 @Injectable()
@@ -167,6 +167,111 @@ export class InvitationsService {
     }));
   }
 
+  async resendInvitation(id: string, actorId: string): Promise<any> {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { id },
+      include: {
+        inviter: { include: { user_profile: true } },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.status !== invitation_status.PENDING) {
+      throw new BadRequestException(
+        `Cannot resend a ${invitation.status.toLowerCase()} invitation`,
+      );
+    }
+
+    const actor = await this.prisma.users.findUnique({
+      where: { id: actorId },
+    });
+    const actorRole = actor?.role as user_role;
+
+    const adminRoles: user_role[] = [
+      user_role.Super_Admin,
+      user_role.Admin_L1,
+      user_role.Admin_L2,
+    ];
+    const isAdminRole = adminRoles.includes(invitation.role);
+
+    if (actorRole !== user_role.Super_Admin) {
+      if (actorRole !== user_role.Admin_L1) {
+        throw new BadRequestException('You do not have permission to resend invitations');
+      }
+      if (isAdminRole || !INVITABLE_ROLES.includes(invitation.role)) {
+        throw new BadRequestException(
+          'You can only resend invitations for Admin_L2, Mechanic, or Driver roles',
+        );
+      }
+    }
+
+    // Rotate the token and extend expiry so the resent link is fresh
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS);
+
+    const updated = await this.prisma.invitation.update({
+      where: { id: invitation.id },
+      data: {
+        token: randomUUID(),
+        expires_at: expiresAt,
+      },
+      include: {
+        inviter: { include: { user_profile: true } },
+      },
+    });
+
+    const inviterName =
+      updated.inviter?.user_profile?.fullName || 'Admin';
+    const inviterRole = (updated.inviter?.role ?? invitation.role) as user_role;
+    const expiryMinutes = INVITATION_EXPIRY_DAYS * 24 * 60;
+
+    try {
+      if (isAdminRole) {
+        await this.mailService.sendSuperAdminInvitationEmail(updated.email, {
+          firstName: updated.first_name,
+          lastName: updated.last_name,
+          email: updated.email,
+          otp: updated.token,
+          inviterRole,
+          role: updated.role,
+          expiryMinutes,
+        });
+      } else {
+        await this.mailService.sendInvitationEmail(updated.email, {
+          firstName: updated.first_name,
+          lastName: updated.last_name,
+          email: updated.email,
+          otp: updated.token,
+          inviterName,
+          role: updated.role,
+          expiryMinutes,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to resend invitation email to ${updated.email}: ${error.message}`,
+      );
+    }
+
+    this.logger.log(
+      `Invitation resent for ${updated.email} (role ${updated.role}) by ${actorId}`,
+    );
+
+    return {
+      id: updated.id,
+      email: updated.email,
+      first_name: updated.first_name,
+      last_name: updated.last_name,
+      role: updated.role,
+      status: updated.status,
+      expires_at: updated.expires_at,
+      created_at: updated.createdAt,
+    };
+  }
+
   async getInvitationByToken(token: string): Promise<any> {
     const invitation = await this.prisma.invitation.findUnique({
       where: { token },
@@ -267,7 +372,7 @@ export class InvitationsService {
       });
 
       // Create role-specific profile
-      if (invitation.role === user_role.DRIVER && dto.driver_onboarding) {
+      if (invitation.role === user_role.Driver && dto.driver_onboarding) {
         await tx.driver.create({
           data: {
             userId: newUser.id,
@@ -279,7 +384,7 @@ export class InvitationsService {
           },
         });
       } else if (
-        invitation.role === user_role.MECHANIC &&
+        invitation.role === user_role.Mechanic &&
         dto.mechanic_onboarding
       ) {
         await tx.mechanic.create({
@@ -346,7 +451,7 @@ export class InvitationsService {
       where: { id: userId },
     });
 
-    const allowedRoles: user_role[] = [user_role.ADMIN_L1, user_role.SUPER_ADMIN];
+    const allowedRoles: user_role[] = [user_role.Admin_L1, user_role.Super_Admin];
     if (!user || !allowedRoles.includes(user.role as user_role)) {
       throw new BadRequestException('Insufficient permissions');
     }
