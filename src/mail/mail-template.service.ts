@@ -249,7 +249,10 @@ export class MailTemplateService {
    * Button-only CTA for invitation emails. The invitation token must never
    * be rendered in the email body — it only travels inside the link.
    */
-  private generateInvitationButton(link: string, expiryMinutes: number): string {
+  private generateInvitationButton(
+    link: string,
+    expiryMinutes: number,
+  ): string {
     const expiryText =
       expiryMinutes >= 1440
         ? `This invitation expires in ${Math.round(expiryMinutes / 1440)} days`

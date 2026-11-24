@@ -281,15 +281,17 @@ export class UsersService {
     // Admin_L1 can only manage team roles: Admin_L2, Mechanic, Driver.
     const adminManagedRoles = ['SUPER_ADMIN', 'ADMIN_L1'];
     const normalize = (r?: string | null) =>
-      (r || '').toString().trim().toUpperCase().replace(/[\s-]+/g, '_');
+      (r || '')
+        .toString()
+        .trim()
+        .toUpperCase()
+        .replace(/[\s-]+/g, '_');
 
     if (
       actorRole === 'Admin_L1' &&
       adminManagedRoles.some((r) => normalize(target.role) === r)
     ) {
-      throw new ForbiddenException(
-        'Admin_L1 cannot modify admin users',
-      );
+      throw new ForbiddenException('Admin_L1 cannot modify admin users');
     }
 
     if (
@@ -297,9 +299,7 @@ export class UsersService {
       dto.role &&
       adminManagedRoles.some((r) => normalize(dto.role) === r)
     ) {
-      throw new ForbiddenException(
-        'Admin_L1 cannot assign admin roles',
-      );
+      throw new ForbiddenException('Admin_L1 cannot assign admin roles');
     }
 
     if (dto.email && dto.email !== target.email) {
@@ -336,9 +336,7 @@ export class UsersService {
       });
 
       const profileData = {
-        ...(dto.first_name !== undefined
-          ? { first_name: dto.first_name }
-          : {}),
+        ...(dto.first_name !== undefined ? { first_name: dto.first_name } : {}),
         ...(dto.last_name !== undefined ? { last_name: dto.last_name } : {}),
         ...(dto.email !== undefined ? { email: dto.email } : {}),
         ...(dto.phone_number !== undefined
@@ -354,7 +352,7 @@ export class UsersService {
         updated.user_profile = {
           ...target.user_profile,
           ...profileData,
-        } as typeof target.user_profile;
+        };
       }
 
       return updated;
@@ -378,7 +376,11 @@ export class UsersService {
     // Admin_L1 can only manage team roles: Admin_L2, Mechanic, Driver.
     const adminManagedRoles = ['SUPER_ADMIN', 'ADMIN_L1'];
     const normalizeRole = (r?: string | null) =>
-      (r || '').toString().trim().toUpperCase().replace(/[\s-]+/g, '_');
+      (r || '')
+        .toString()
+        .trim()
+        .toUpperCase()
+        .replace(/[\s-]+/g, '_');
 
     if (
       actorRole === 'Admin_L1' &&

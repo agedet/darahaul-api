@@ -5,7 +5,6 @@ import helmet from 'helmet';
 import { RolesGuard } from './authentication/guards/roles.guard';
 import { ConfigService } from '@nestjs/config';
 
-
 function validateEnvironment() {
   const requiredEnvVars = ['DATABASE_URL'];
   const missingVars = requiredEnvVars.filter(

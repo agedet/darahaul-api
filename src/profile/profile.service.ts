@@ -153,7 +153,10 @@ export class ProfileService {
    * Create or update the role-specific profile for drivers and mechanics.
    * Safe to call multiple times (upsert) so it can also be used for edits.
    */
-  async completeOnboarding(user: any, dto: CompleteOnboardingDto): Promise<any> {
+  async completeOnboarding(
+    user: any,
+    dto: CompleteOnboardingDto,
+  ): Promise<any> {
     if (!user?.id || typeof user.id !== 'string') {
       throw new BadRequestException('Invalid user ID format');
     }

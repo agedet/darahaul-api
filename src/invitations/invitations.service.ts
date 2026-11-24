@@ -199,7 +199,9 @@ export class InvitationsService {
 
     if (actorRole !== user_role.Super_Admin) {
       if (actorRole !== user_role.Admin_L1) {
-        throw new BadRequestException('You do not have permission to resend invitations');
+        throw new BadRequestException(
+          'You do not have permission to resend invitations',
+        );
       }
       if (isAdminRole || !INVITABLE_ROLES.includes(invitation.role)) {
         throw new BadRequestException(
@@ -223,8 +225,7 @@ export class InvitationsService {
       },
     });
 
-    const inviterName =
-      updated.inviter?.user_profile?.fullName || 'Admin';
+    const inviterName = updated.inviter?.user_profile?.fullName || 'Admin';
     const inviterRole = (updated.inviter?.role ?? invitation.role) as user_role;
     const expiryMinutes = INVITATION_EXPIRY_DAYS * 24 * 60;
 
@@ -451,7 +452,10 @@ export class InvitationsService {
       where: { id: userId },
     });
 
-    const allowedRoles: user_role[] = [user_role.Admin_L1, user_role.Super_Admin];
+    const allowedRoles: user_role[] = [
+      user_role.Admin_L1,
+      user_role.Super_Admin,
+    ];
     if (!user || !allowedRoles.includes(user.role as user_role)) {
       throw new BadRequestException('Insufficient permissions');
     }

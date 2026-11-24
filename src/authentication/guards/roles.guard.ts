@@ -66,7 +66,6 @@ export class RolesGuard implements CanActivate {
     this.logger.debug(`Auth token present: ${!!token}`);
 
     if (token) {
-
       try {
         const decoded = jwt.verify(
           token,

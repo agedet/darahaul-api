@@ -36,13 +36,13 @@ export class ProfileController {
     user_role.Admin_L2,
     user_role.Super_Admin,
   )
-//   @ApiOperation({ summary: 'Get personal profile' })
-//   @ApiResponse({
-//     status: 200,
-//     description: 'Personal profile retrieved successfully',
-//   })
-//   @ApiResponse({ status: 400, description: 'Invalid user ID format' })
-//   @ApiResponse({ status: 404, description: 'User profile not found' })
+  //   @ApiOperation({ summary: 'Get personal profile' })
+  //   @ApiResponse({
+  //     status: 200,
+  //     description: 'Personal profile retrieved successfully',
+  //   })
+  //   @ApiResponse({ status: 400, description: 'Invalid user ID format' })
+  //   @ApiResponse({ status: 404, description: 'User profile not found' })
   async getPersonalProfile(@Request() req: any) {
     return this.profileService.getPersonalProfile(req.user);
   }
@@ -55,13 +55,13 @@ export class ProfileController {
     user_role.Admin_L2,
     user_role.Super_Admin,
   )
-//   @ApiOperation({ summary: 'Update personal profile' })
-//   @ApiResponse({
-//     status: 200,
-//     description: 'Personal profile updated successfully',
-//   })
-//   @ApiResponse({ status: 400, description: 'Invalid user ID format' })
-//   @ApiResponse({ status: 404, description: 'User profile not found' })
+  //   @ApiOperation({ summary: 'Update personal profile' })
+  //   @ApiResponse({
+  //     status: 200,
+  //     description: 'Personal profile updated successfully',
+  //   })
+  //   @ApiResponse({ status: 400, description: 'Invalid user ID format' })
+  //   @ApiResponse({ status: 404, description: 'User profile not found' })
   async updatePersonalProfile(
     @Request() req: any,
     @Body() updateDto: UpdatePersonalProfileDto,

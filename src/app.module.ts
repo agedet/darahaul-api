@@ -15,7 +15,6 @@ import { ProfileModule } from './profile/profile.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { AdminModule } from './admin/admin.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({

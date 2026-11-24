@@ -37,9 +37,17 @@ const cookieOptions = (maxAge: number) => ({
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+  private setAuthCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+  ) {
     res.cookie(ACCESS_TOKEN_COOKIE, accessToken, cookieOptions(ONE_DAY_MS));
-    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, cookieOptions(REFRESH_TOKEN_MAX_AGE_MS));
+    res.cookie(
+      REFRESH_TOKEN_COOKIE,
+      refreshToken,
+      cookieOptions(REFRESH_TOKEN_MAX_AGE_MS),
+    );
   }
 
   private clearAuthCookies(res: Response) {

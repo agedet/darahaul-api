@@ -40,7 +40,7 @@ export class AuthService {
     this.secret = this.configService.get<string>('HOTP_SECRET') || '';
   }
 
-  async register(registerDto: RegisterDto): Promise<AuthResponse | any> {
+  async register(registerDto: RegisterDto): Promise<any> {
     const existingUser = await this.usersService.findUserByEmail(
       registerDto.email,
     );
@@ -103,7 +103,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponse | any> {
+  async login(loginDto: LoginDto): Promise<any> {
     const { email, password } = loginDto;
     const user = await this.usersService.findUserByEmail(email);
     if (!user) {
@@ -140,7 +140,7 @@ export class AuthService {
     };
   }
 
-  async verifyOtp(dto: VerifyOtpDto): Promise<AuthResponse | any> {
+  async verifyOtp(dto: VerifyOtpDto): Promise<any> {
     const { email, otp } = dto;
 
     const user = await this.usersService.findUserByEmail(email);
@@ -238,7 +238,12 @@ export class AuthService {
     const profile = record.user_profile;
     const role = (record.role || '').toString();
     const canonicalRole =
-      CANONICAL_ROLES[role.trim().toUpperCase().replace(/[\s-]+/g, '_')] ?? role;
+      CANONICAL_ROLES[
+        role
+          .trim()
+          .toUpperCase()
+          .replace(/[\s-]+/g, '_')
+      ] ?? role;
 
     const driverProfile = profile?.driverProfile ?? null;
     const mechanicProfile = profile?.mechanicProfile ?? null;
@@ -314,7 +319,7 @@ export class AuthService {
     return { accessToken: tokens.accessToken };
   }
 
-  async resendOtp(email: string): Promise<AuthResponse | any> {
+  async resendOtp(email: string): Promise<any> {
     const user = await this.usersService.findUserByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid user');
